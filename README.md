@@ -41,34 +41,48 @@ Subagents get their own row with name, model, effort and context.
 
 ## Install
 
+With [uv](https://docs.astral.sh/uv/):
+
 ```sh
-git clone https://github.com/DimkaGorhover/cc-statusline.git ~/.local/share/cc-statusline
-python3 ~/.local/share/cc-statusline/statusline.py setup
+uv tool install git+https://github.com/DimkaGorhover/cc-statusline
+cc-statusline setup
 ```
 
+Or with [mise](https://mise.jdx.dev/):
+
+```sh
+mise use -g pipx:git+https://github.com/DimkaGorhover/cc-statusline
+cc-statusline setup
+```
+
+To pin a release, add the tag to the URL: `git+https://github.com/DimkaGorhover/cc-statusline@v0.2.0`.
+
 `setup` points `statusLine` and `subagentStatusLine` in `~/.claude/settings.json` (or
-`$CLAUDE_CONFIG_DIR/settings.json`) at the cloned script. It saves a backup to `settings.json.bak`
-first. If settings.json is a symlink, for example into a dotfiles repo, `setup` writes the file it
-points to. Leave the clone where it is: settings.json runs the script from that path.
+`$CLAUDE_CONFIG_DIR/settings.json`) at `cc-statusline render` and `cc-statusline render --subagent`.
+Claude Code finds the command on your PATH (`~/.local/bin` for uv, mise's shims), so upgrades never
+change settings.json. `setup` saves a backup to `settings.json.bak` first. If settings.json is a
+symlink, for example into a dotfiles repo, `setup` writes the file it points to.
 
 If another status line is already configured, `setup` refuses and changes nothing. Rerun it with
-`-f` to replace that status line. A copy of this script at a different path counts as another
-status line too, so after moving the clone, run `setup -f` from the new place.
+`-f` to replace that status line. Older entries that ran `statusline.py` directly are updated
+without `-f`.
 
 ## Upgrade
 
 ```sh
-git -C ~/.local/share/cc-statusline pull
-python3 ~/.local/share/cc-statusline/statusline.py setup
+uv tool upgrade cc-statusline   # or: mise up cc-statusline
+cc-statusline setup
 ```
 
-The pull brings in new code. Rerunning `setup` picks up any change to the settings.json entries,
-and prints `already up to date` when there is none.
+Rerunning `setup` picks up any change to the settings.json entries, and prints `already up to date`
+when there is none.
 
 ## Options
 
 ```sh
-python3 statusline.py setup [--bar STYLE] [--refresh-interval N] [--settings PATH] [--dry-run] [-f]
+cc-statusline setup [--bar STYLE] [--refresh-interval N] [--settings PATH] [--dry-run] [-f]
+cc-statusline render [--subagent] [--bar STYLE]   # what Claude Code runs; reads its JSON on stdin
+cc-statusline --version
 ```
 
 | Option                 | Default                    | Description                                                                          |
@@ -84,11 +98,11 @@ python3 statusline.py setup [--bar STYLE] [--refresh-interval N] [--settings PAT
 ```sh
 mise install          # prek, ruff, ty, uv, gitleaks
 prek install          # git pre-commit hook
-uv run pytest         # tests (the dev environment uses Python 3.13+)
+uv run pytest         # tests (pytest needs Python 3.10+)
 mise run pre-commit   # all hooks on all files
 ```
 
-pytest needs a newer Python than the 3.9 the script supports, so the `py39-smoke` hook also renders
+pytest can't run on the 3.9 the script supports, so the `py39-smoke` hook also renders
 `tests/input.json` on Python 3.9.
 
 ## License
