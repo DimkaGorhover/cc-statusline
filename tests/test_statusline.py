@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import io
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 from typing import NoReturn
 
@@ -182,6 +184,17 @@ def test_wt_items_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
     assert sl.wt_items("/r/repo") == []  # broken cache and a hung wt: no git info, no crash
 
 
+def test_render_subagent_flag(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    monkeypatch.setattr(sys, "stdin", io.StringIO('{"tasks": [{"id": "t1", "name": "rev"}]}'))
+    assert run("render", "--subagent") == 0
+    assert json.loads(capsys.readouterr().out)["id"] == "t1"
+
+
+def test_version(capsys: pytest.CaptureFixture[str]) -> None:
+    assert run("--version") == 0
+    assert capsys.readouterr().out.startswith("cc-statusline ")
+
+
 def run(*argv: str) -> int | str | None:
     try:
         return sl.main(list(argv))
@@ -199,7 +212,7 @@ def setup(settings: str, *args: str) -> int | str | None:
 
 
 def test_setup_updates_own_old_entry(settings: str) -> None:
-    old = {"type": "command", "command": f'python3 "{sl.SCRIPT}"'}
+    old = {"type": "command", "command": 'python3 -X lazy_imports=all "/x/cc-statusline/statusline.py" render'}
     write_json(settings, {"model": "opus", "statusLine": old})
     assert setup(settings, "--dry-run") == 0
     assert load_settings(settings)["statusLine"] == old
@@ -215,6 +228,13 @@ def test_setup_line_bar_without_refresh(settings: str) -> None:
     s = load_settings(settings)
     assert "refreshInterval" not in s["statusLine"]
     assert "--bar line" in s["subagentStatusLine"]["command"]
+
+
+def test_setup_writes_cc_statusline_commands(settings: str) -> None:
+    assert setup(settings, "--bar", "line") == 0
+    s = load_settings(settings)
+    assert s["statusLine"]["command"] == "cc-statusline render --bar line"
+    assert s["subagentStatusLine"]["command"] == "cc-statusline render --subagent --bar line"
 
 
 def test_setup_refuses_foreign_entry_without_force(settings: str) -> None:

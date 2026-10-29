@@ -4,16 +4,17 @@
 `render` (stdin: status line JSON) -> 2 lines:
   model | context used/window | session lines changed | branch or worktree (via `wt`)
   5h limit | 7d limit | prompt cache
-`render subagent` (stdin: {"tasks": [...]}) -> one JSON line per task.
+`render --subagent` (stdin: {"tasks": [...]}) -> one JSON line per task.
 Bars are Material Design circles by default; `--bar circles-fa` for Font Awesome circles, `--bar line` for ▬.
 
-`setup` points statusLine and subagentStatusLine in settings.json at this script.
+`setup` points statusLine and subagentStatusLine in settings.json at the `cc-statusline` command.
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.metadata
 import json
 import os
 import re
@@ -246,19 +247,22 @@ def render_subagents(data: Json) -> str:
     return "\n".join(rows)
 
 
-SCRIPT = os.path.realpath(__file__)
-
-
 def setup_entries(bar_style: str, refresh: int) -> Json:
-    base = f'python3 -X lazy_imports=all "{SCRIPT}" render'
+    # bare name, found on PATH: uv's ~/.local/bin and mise's shims keep it stable across upgrades
     flag = f" --bar {bar_style}" if bar_style != "circles" else ""
-    main_entry: Json = {"type": "command", "command": base + flag}
+    main_entry: Json = {"type": "command", "command": f"cc-statusline render{flag}"}
     if refresh:
         main_entry["refreshInterval"] = refresh
     return {
         "statusLine": main_entry,
-        "subagentStatusLine": {"type": "command", "command": f"{base} subagent{flag}"},
+        "subagentStatusLine": {"type": "command", "command": f"cc-statusline render --subagent{flag}"},
     }
+
+
+def is_ours(entry: Json) -> bool:
+    """This tool's entry, including older ones that ran statusline.py from a clone or ~/.claude/hooks."""
+    command = str(entry.get("command", "")) if isinstance(entry, dict) else ""
+    return command.startswith("cc-statusline") or "statusline.py" in command
 
 
 def load_settings(path: str) -> Json:
@@ -278,7 +282,7 @@ def load_settings(path: str) -> Json:
 
 
 def die(msg: str) -> NoReturn:
-    print(f"statusline.py: {msg}", file=sys.stderr)
+    print(f"cc-statusline: {msg}", file=sys.stderr)
     sys.exit(2)
 
 
@@ -313,7 +317,7 @@ def cmd_setup(args: argparse.Namespace) -> int:
         old = settings.get(key)
         if old == new:
             print(f"{key}: already up to date")
-        elif old is None or args.force or SCRIPT in str((old or {}).get("command", "")):
+        elif old is None or args.force or is_ours(old):
             updates[key] = new
             print(f"{key}:\n  - {describe(old)}\n  + {describe(new)}")
         else:
@@ -348,27 +352,29 @@ def cmd_render(args: argparse.Namespace) -> int:
         data = json.load(sys.stdin)
     except ValueError:
         return 0
-    print(render_subagents(data) if args.mode == "subagent" else render_main(data))
+    print(render_subagents(data) if args.subagent else render_main(data))
     return 0
+
+
+def version() -> str:
+    try:
+        return importlib.metadata.version("cc-statusline")
+    except importlib.metadata.PackageNotFoundError:  # run as a plain file, not installed
+        return "dev"
 
 
 def parser() -> argparse.ArgumentParser:
     raw = argparse.RawDescriptionHelpFormatter
-    p = argparse.ArgumentParser(prog="statusline.py", description=__doc__, formatter_class=raw)
+    p = argparse.ArgumentParser(prog="cc-statusline", description=__doc__, formatter_class=raw)
+    p.add_argument("--version", action="version", version=f"%(prog)s {version()}")
     sub = p.add_subparsers(dest="cmd", required=True, metavar="<command>")
 
     sp = sub.add_parser("render", help="render the status line from Claude Code's JSON on stdin")
     sp.set_defaults(func=cmd_render)
-    sp.add_argument(
-        "mode",
-        nargs="?",
-        choices=("main", "subagent"),
-        default="main",
-        help="main = statusLine, subagent = subagentStatusLine (main)",
-    )
+    sp.add_argument("--subagent", action="store_true", help="render subagentStatusLine rows instead of statusLine")
     sp.add_argument("--bar", choices=BARS, default="circles", help="progress bar style (circles)")
 
-    sp = sub.add_parser("setup", help="point statusLine and subagentStatusLine in settings.json at this script")
+    sp = sub.add_parser("setup", help="point statusLine and subagentStatusLine in settings.json at cc-statusline")
     sp.set_defaults(func=cmd_setup)
     sp.add_argument("--bar", choices=BARS, default="circles", help="progress bar style (circles)")
     sp.add_argument(
