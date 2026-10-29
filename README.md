@@ -15,8 +15,8 @@ Line 1:
 - **Branch or worktree**, from [`wt`](https://github.com/max-sixty/worktrunk):
   - `●` when there are uncommitted changes
   - `⇡`/`⇣` for commits ahead of or behind upstream
-  - the worktree's marker
-  - the markers of the repo's other worktrees
+  - the worktree's marker, e.g. 🤖 while Claude works and 💬 while it waits
+  - the markers of the repo's other worktrees, e.g. `2🤖 1💬`
 
 Line 2:
 
@@ -33,7 +33,11 @@ Subagents get their own row with name, model, effort and context.
 - Python 3.9+ (macOS's `/usr/bin/python3` works)
 - A [Nerd Font](https://www.nerdfonts.com/) in your terminal, for the icons
 - Optional: [`wt`](https://github.com/max-sixty/worktrunk) for the branch/worktree segment.
-  Without it, that segment is hidden.
+  Without it, that segment is hidden. The `wt list` result is cached for 5 seconds in
+  `$XDG_CACHE_HOME/cc-statusline` (`~/.cache/cc-statusline` by default).
+- Optional: Worktrunk's Claude Code plugin, which sets the 🤖/💬 markers:
+  `wt config plugins claude install`. You can also set a marker yourself with
+  `wt config state marker set 🚧`.
 
 ## Install
 
@@ -44,10 +48,12 @@ python3 ~/.local/share/cc-statusline/statusline.py setup
 
 `setup` points `statusLine` and `subagentStatusLine` in `~/.claude/settings.json` (or
 `$CLAUDE_CONFIG_DIR/settings.json`) at the cloned script. It saves a backup to `settings.json.bak`
-first. Leave the clone where it is: settings.json runs the script from that path.
+first. If settings.json is a symlink, for example into a dotfiles repo, `setup` writes the file it
+points to. Leave the clone where it is: settings.json runs the script from that path.
 
 If another status line is already configured, `setup` refuses and changes nothing. Rerun it with
-`-f` to replace that status line.
+`-f` to replace that status line. A copy of this script at a different path counts as another
+status line too, so after moving the clone, run `setup -f` from the new place.
 
 ## Upgrade
 
@@ -81,6 +87,9 @@ prek install          # git pre-commit hook
 uv run pytest         # tests (the dev environment uses Python 3.13+)
 mise run pre-commit   # all hooks on all files
 ```
+
+pytest needs a newer Python than the 3.9 the script supports, so the `py39-smoke` hook also renders
+`tests/input.json` on Python 3.9.
 
 ## License
 
