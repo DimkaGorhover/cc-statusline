@@ -67,6 +67,9 @@ repos:
       - id: check-toml
         groups:
           - validate
+      - id: check-json
+        groups:
+          - validate
       - id: detect-private-key
         groups:
           - validate
@@ -76,6 +79,13 @@ repos:
       - id: check-executables-have-shebangs
         groups:
           - validate
+      - id: pretty-format-json
+        groups:
+          - modify
+        args:
+          - --autofix
+          - --no-sort-keys
+          - --no-ensure-ascii
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
