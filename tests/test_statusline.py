@@ -223,6 +223,16 @@ def test_setup_refuses_foreign_entry_without_force(settings: str) -> None:
     assert load_settings(settings)["statusLine"] == setup_entries("circles", 60)["statusLine"]
 
 
+def test_setup_writes_through_symlink(tmp_path: Path) -> None:
+    real = tmp_path / "dotfiles" / "settings.json"
+    write_json(str(real), {"model": "opus"})
+    link = tmp_path / "settings.json"
+    link.symlink_to(real)
+    assert setup(str(link)) == 0
+    assert link.is_symlink()
+    assert load_settings(str(real))["statusLine"] == setup_entries("circles", 60)["statusLine"]
+
+
 def test_setup_rejects_invalid_json(settings: str) -> None:
     Path(settings).write_text("{oops")
     assert setup(settings) == 2

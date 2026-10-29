@@ -304,7 +304,8 @@ def describe(entry: Json | None) -> str:
 
 def cmd_setup(args: argparse.Namespace) -> int:
     path = args.settings or os.path.join(os.environ.get("CLAUDE_CONFIG_DIR") or "~/.claude", "settings.json")
-    path = os.path.expanduser(path)
+    # realpath: write through a symlinked settings.json (dotfiles) instead of replacing the link
+    path = os.path.realpath(os.path.expanduser(path))
     settings = load_settings(path)
     updates: Json = {}
     refused: list[str] = []
