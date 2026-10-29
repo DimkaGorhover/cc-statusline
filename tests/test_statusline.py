@@ -38,7 +38,10 @@ def strip(s: str) -> str:
     return sl.ANSI.sub("", s)
 
 
-@pytest.mark.parametrize(("n", "want"), [(54677, "55k"), (1_000_000, "1M"), (1500, "1.5k"), (999, "999")])
+@pytest.mark.parametrize(
+    ("n", "want"),
+    [(54677, "55k"), (1_000_000, "1M"), (1500, "1.5k"), (999, "999"), (999_499, "999k"), (999_500, "1M")],
+)
 def test_human(n: int, want: str) -> None:
     assert human(n) == want
 

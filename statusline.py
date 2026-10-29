@@ -64,7 +64,7 @@ def level(pct: float) -> str:
 
 def human(n: float) -> str:
     for div, suffix in ((1_000_000, "M"), (1_000, "k")):
-        if n >= div:
+        if n >= div * 0.9995:  # 999_500 would otherwise round to "1000k"
             v = n / div
             return f"{v:.1f}".rstrip("0").rstrip(".") + suffix if v < 10 else f"{v:.0f}{suffix}"
     return str(int(n))
