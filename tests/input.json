@@ -1,0 +1,15 @@
+{
+  "model": { "id": "claude-opus-5-5", "display_name": "Opus 5.5" },
+  "workspace": { "current_dir": "/nonexistent" },
+  "effort": { "level": "medium" },
+  "cost": { "total_lines_added": 12, "total_lines_removed": 3 },
+  "context_window": {
+    "context_window_size": 1000000,
+    "current_usage": { "input_tokens": 2, "cache_creation_input_tokens": 1252, "cache_read_input_tokens": 53423 }
+  },
+  "rate_limits": {
+    "five_hour": { "used_percentage": 23, "resets_at": 1793298000 },
+    "seven_day": { "used_percentage": 25, "resets_at": 1793332800 }
+  },
+  "prompt_cache": { "caching_observed": true, "warm": true, "expires_at": 1793283900 }
+}

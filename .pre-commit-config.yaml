@@ -114,6 +114,17 @@ repos:
         pass_filenames: false
         files: ^(statusline\.py|tests/.*\.py|pyproject\.toml|uv\.lock)$
 
+      # the README promises Python 3.9 (macOS /usr/bin/python3); pytest needs a newer one,
+      # so render a sample input on 3.9 to catch newer-than-3.9 library calls
+      - id: py39-smoke
+        groups:
+          - validate
+          - python
+        name: render on Python 3.9
+        language: system
+        entry: sh -c 'uv run --quiet --no-project --python 3.9 python statusline.py render < tests/input.json > /dev/null'
+        pass_filenames: false
+        files: ^(statusline\.py|tests/input\.json)$
 
       - id: ty
         groups:
