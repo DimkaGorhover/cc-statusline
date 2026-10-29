@@ -1,0 +1,26 @@
+root = true
+
+[*]
+charset = utf-8
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{yaml,yml,js,ts,json,sh}]
+indent_style = space
+indent_size = 2
+
+[*.{yaml,yml}]
+ij_yaml_indent_size = 2
+ij_yaml_space_before_colon = false
+ij_yaml_spaces_within_braces = true
+ij_yaml_spaces_within_brackets = false
+ij_yaml_line_comment_at_first_column = false
+ij_yaml_keep_indents_on_empty_lines = false
+
+[*.py]
+indent_style = space
+indent_size = 4
+
+[*.md]
+max_line_length = 80
+trim_trailing_whitespace = false

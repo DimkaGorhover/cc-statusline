@@ -1,0 +1,13 @@
+#:schema https://mise.en.dev/schema/mise.json
+[settings]
+minimum_release_age = "7d"
+
+[tools]
+gitleaks = "latest"
+prek = "latest"
+ruff = "latest"
+ty = "latest"
+
+[tasks.pre-commit]
+description = "run pre-commit hooks on all files"
+run = "prek run --all-files --cd {{config_root}}"

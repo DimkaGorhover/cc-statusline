@@ -1,0 +1,7 @@
+# https://docs.astral.sh/ruff/configuration/
+# runs on macOS's /usr/bin/python3 3.9; `from __future__ import annotations` allows `X | None` in hints
+target-version = "py39"
+line-length = 120
+
+[lint]
+select = ["I", "E", "W", "F", "UP", "B", "SIM", "C4", "RUF", "ANN"]

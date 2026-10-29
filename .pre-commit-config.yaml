@@ -1,0 +1,126 @@
+# Uses prek-only features (`repo: builtin`, `groups`); upstream `pre-commit` cannot run this file.
+#
+# Groups: `modify` = hooks that rewrite files, `validate` = read-only checks.
+# In CI run them in order so validation sees formatted files:
+#   prek run --all-files --group modify && prek run --all-files --group validate
+minimum_prek_version: "0.4.11"
+
+default_stages:
+  - pre-commit
+
+repos:
+  - repo: meta # validates this file: flags hooks that match nothing and excludes that exclude nothing
+    hooks:
+      - id: check-hooks-apply
+        groups:
+          - validate
+      - id: check-useless-excludes
+        groups:
+          - validate
+
+  - repo: local
+    hooks:
+      - id: ruff-format
+        groups:
+          - modify
+          - python
+        name: Ruff Format
+        language: system
+        entry: ruff
+        args:
+          - format
+        types:
+          - python
+
+      - id: ruff-check
+        groups:
+          - modify
+          - python
+        name: Ruff Check
+        language: system
+        entry: ruff
+        args:
+          - check
+          - --fix
+        types:
+          - python
+
+  - repo: builtin
+    hooks:
+      - id: trailing-whitespace
+        groups:
+          - modify
+      - id: check-added-large-files
+        groups:
+          - validate
+      - id: check-case-conflict
+        groups:
+          - validate
+      - id: mixed-line-ending
+        groups:
+          - modify
+        args:
+          - --fix=lf # Enforce Linux/macOS style (LF)
+      - id: end-of-file-fixer
+        groups:
+          - modify
+      - id: check-toml
+        groups:
+          - validate
+      - id: detect-private-key
+        groups:
+          - validate
+      - id: check-merge-conflict
+        groups:
+          - validate
+      - id: check-executables-have-shebangs
+        groups:
+          - validate
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: forbid-submodules
+        groups:
+          - validate
+
+  - repo: local
+    hooks:
+      # https://github.com/gitleaks/gitleaks/blob/master/.pre-commit-hooks.yaml
+      - id: gitleaks
+        groups:
+          - validate
+        pass_filenames: false
+        name: Detect hardcoded secrets
+        description: Detect hardcoded secrets using Gitleaks
+        entry: gitleaks
+        args:
+          - git
+          - --pre-commit
+          - --redact
+          - --no-banner
+          - --staged
+          - --verbose
+          - --max-target-megabytes=10
+        language: system
+
+      - id: self-test
+        groups:
+          - validate
+          - python
+        name: statusline.py self-test
+        language: system
+        entry: python3 statusline.py test
+        pass_filenames: false
+        files: ^statusline\.py$
+
+      - id: ty
+        groups:
+          - validate
+          - python
+        name: ty
+        language: system
+        entry: ty check
+        pass_filenames: false
+        types:
+          - python
