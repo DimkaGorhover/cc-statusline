@@ -8,15 +8,12 @@
 Bars are Material Design circles by default; `--bar circles-fa` for Font Awesome circles, `--bar line` for ▬.
 
 `setup` points statusLine and subagentStatusLine in settings.json at this script.
-`test` runs the self-test.
 """
 
 from __future__ import annotations
 
 import argparse
-import contextlib
 import hashlib
-import io
 import json
 import os
 import re
@@ -247,133 +244,6 @@ def render_subagents(data: Json) -> str:
     return "\n".join(rows)
 
 
-def self_test() -> None:
-    def strip(s: str) -> str:
-        return ANSI.sub("", s)
-
-    assert human(54677) == "55k" and human(1_000_000) == "1M" and human(1500) == "1.5k" and human(999) == "999"
-    F, H, E = CIRCLES["circles"]
-    assert bar(10, "circles-fa") == "\uf042" + "\uf10c" * 4
-    assert bar(0) == E * 5 and bar(60) == F * 3 + E * 2 and bar(100) == F * 5 and bar(10) == H + E * 4
-    assert strip(bar(30, "line")) == "▬" * 10 and bar(30, "line").startswith("▬▬▬" + DIM)
-    assert duration(2 * 3600 + 14 * 60) == "2h14m" and duration(3 * 86400 + 4 * 3600) == "3d4h"
-    assert pretty_model("claude-haiku-5-5") == "Haiku 5.5" and pretty_model("claude-opus-4-20250514") == "Opus 4"
-    assert pretty_model("claude-sonnet-4-5-20250929") == "Sonnet 4.5" and pretty_model("") == ""
-    data = {
-        "model": {"id": "claude-opus-5-5", "display_name": "Opus 5.5"},
-        "cost": {"total_lines_added": 12, "total_lines_removed": 3},
-        "context_window": {
-            "context_window_size": 1_000_000,
-            "current_usage": {
-                "input_tokens": 2,
-                "cache_creation_input_tokens": 1252,
-                "cache_read_input_tokens": 53423,
-            },
-        },
-        "rate_limits": {
-            "five_hour": {"used_percentage": 23, "resets_at": 1000 + 8040},
-            "seven_day": {"used_percentage": 25, "resets_at": 1000 + 3 * 86400 + 4 * 3600},
-        },
-        "effort": {"level": "medium"},
-        "prompt_cache": {"caching_observed": True, "warm": True, "expires_at": 1000 + 42 * 60},
-    }
-    linked = [
-        {
-            "branch": "feat-x",
-            "worktree": {
-                "path": "/r/repo.feat-x",
-                "main": False,
-                "current": True,
-                "changes": {"staged": False, "modified": True, "diff": {"added": 1}},
-            },
-            "upstream": {"ahead": 2, "behind": 1},
-            "marker": "🤖",
-        },
-        {"branch": "main", "marker": "💬", "worktree": {"path": "/r/repo", "main": True}},
-        {"branch": "b", "marker": "🤖", "worktree": {"path": "/r/repo.b"}},
-        {"branch": "c", "marker": "🤖", "worktree": {"path": "/r/repo.c"}},
-    ]
-    out = strip(render_main(data, now=1000, items=linked)).split("\n")
-    assert out[0] == (
-        f"{ROBOT} Opus 5.5 · medium │ {CHIP} {H}{E * 4} 55k/1M (5%) │ {DIFF} +12 -3 │ "
-        f"{TREE} repo.feat-x ({BRANCH} feat-x) ● ⇡2 ⇣1 🤖 │ {TREE} 1💬 2🤖"
-    ), out[0]
-    assert out[1] == (
-        f"{CLOCK} 5h {F}{E * 4} 23% ↻ 2h14m │ {CALENDAR} 7d {F}{H}{E * 3} 25% ↻ 3d4h │ {HOURGLASS} 42m"
-    ), out[1]
-    assert strip(cache_seg({"caching_observed": True, "warm": True, "expires_at": 900}, 1000)) == f"{HOURGLASS} cold"
-    main = [
-        {
-            "branch": "main",
-            "worktree": {
-                "path": "/r/repo",
-                "main": True,
-                "current": True,
-                "changes": {"modified": False},
-            },
-            "upstream": {"ahead": 0, "behind": 0},
-        }
-    ]
-    assert strip(render_main({"model": {"display_name": "Opus"}}, items=main)) == f"{ROBOT} Opus │ {BRANCH} main"
-    sub = render_subagents(
-        {
-            "tasks": [
-                {
-                    "id": "t1",
-                    "agentType": "explore",
-                    "model": "claude-haiku-5-5",
-                    "effort": "low",
-                    "tokenCount": 34000,
-                    "contextWindowSize": 200000,
-                }
-            ]
-        }
-    )
-    row = json.loads(sub)
-    assert (
-        row["id"] == "t1"
-        and strip(row["content"]) == f"{ROBOT} explore │ Haiku 5.5 · low │ {CHIP} {F}{E * 4} 34k/200k (17%)"
-    )
-    test_setup()
-    print("ok")
-
-
-def test_setup() -> None:
-    with tempfile.TemporaryDirectory() as d:
-        path = os.path.join(d, "settings.json")
-
-        def quiet(*a: str) -> int | str | None:
-            return run_quiet(["setup", "--settings", path, *a])
-
-        old = {"type": "command", "command": f'python3 "{SCRIPT}"'}
-        write_json(path, {"model": "opus", "statusLine": old})
-        assert quiet("--dry-run") == 0 and load_settings(path)["statusLine"] == old
-        assert quiet() == 0  # ours, old form -> updated
-        s = load_settings(path)
-        assert s["model"] == "opus" and s == {"model": "opus", **setup_entries("circles", 60)}
-        assert load_settings(path + ".bak")["statusLine"] == old
-        assert quiet() == 0 and not os.path.exists(path + ".tmp")  # noop
-        assert quiet("--bar", "line", "--refresh-interval", "0") == 0
-        assert "refreshInterval" not in load_settings(path)["statusLine"]
-        assert "--bar line" in load_settings(path)["subagentStatusLine"]["command"]
-        foreign = {"type": "command", "command": "npx ccstatusline@latest"}
-        write_json(path, {"statusLine": foreign})
-        assert quiet() == 1 and load_settings(path) == {"statusLine": foreign}  # refused, nothing written
-        assert quiet("-f") == 0 and load_settings(path)["statusLine"] == setup_entries("circles", 60)["statusLine"]
-        with open(path, "w") as f:
-            f.write("{oops")
-        assert quiet() == 2
-        assert run_quiet(["setup", "--settings", os.path.join(d, "new", "settings.json")]) == 0  # created
-
-
-def run_quiet(argv: list[str]) -> int | str | None:
-    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-        try:
-            return main(argv)
-        except SystemExit as e:
-            return e.code
-
-
 SCRIPT = os.path.realpath(__file__)
 
 
@@ -472,11 +342,6 @@ def cmd_render(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_test(args: argparse.Namespace) -> int:
-    self_test()  # expectations assume the default circles bar
-    return 0
-
-
 def parser() -> argparse.ArgumentParser:
     raw = argparse.RawDescriptionHelpFormatter
     p = argparse.ArgumentParser(prog="statusline.py", description=__doc__, formatter_class=raw)
@@ -510,9 +375,6 @@ def parser() -> argparse.ArgumentParser:
     )
     sp.add_argument("--dry-run", action="store_true", help="show the changes without writing")
     sp.add_argument("-f", "--force", action="store_true", help="replace a status line set by another tool")
-
-    sp = sub.add_parser("test", help="run the self-test")
-    sp.set_defaults(func=cmd_test)
     return p
 
 

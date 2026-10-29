@@ -104,15 +104,16 @@ repos:
           - --max-target-megabytes=10
         language: system
 
-      - id: self-test
+      - id: pytest
         groups:
           - validate
           - python
-        name: statusline.py self-test
+        name: pytest
         language: system
-        entry: python3 statusline.py test
+        entry: uv run --quiet --frozen pytest -q -p no:cacheprovider
         pass_filenames: false
-        files: ^statusline\.py$
+        files: ^(statusline\.py|tests/.*\.py|pyproject\.toml|uv\.lock)$
+
 
       - id: ty
         groups:
@@ -120,7 +121,8 @@ repos:
           - python
         name: ty
         language: system
-        entry: ty check
+        # the project venv gives ty pytest and the Python version
+        entry: uv run --quiet --frozen ty check
         pass_filenames: false
         types:
           - python

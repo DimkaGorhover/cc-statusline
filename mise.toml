@@ -7,6 +7,7 @@ gitleaks = "latest"
 prek = "latest"
 ruff = "latest"
 ty = "latest"
+uv = "latest"
 
 [tasks.pre-commit]
 description = "run pre-commit hooks on all files"
