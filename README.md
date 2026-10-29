@@ -98,7 +98,7 @@ cc-statusline --version
 ```sh
 mise install          # prek, ruff, ty, uv, gitleaks
 prek install          # git pre-commit hook
-uv run pytest         # tests (pytest needs Python 3.10+)
+mise run test         # tests (pytest needs Python 3.10+)
 mise run pre-commit   # all hooks on all files
 ```
 
