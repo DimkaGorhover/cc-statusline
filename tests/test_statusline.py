@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 from pathlib import Path
+from typing import NoReturn
 
 import pytest
 
@@ -147,6 +150,33 @@ def test_render_subagents() -> None:
     row = json.loads(render_subagents({"tasks": [task]}))
     assert row["id"] == "t1"
     assert strip(row["content"]) == f"{ROBOT} explore │ Haiku 5.5 · low │ {CHIP} {F}{E * 4} 34k/200k (17%)"
+
+
+def test_wt_items_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setattr(sl.shutil, "which", lambda _: "/bin/wt")
+    calls: list[list[str]] = []
+
+    def fake_run(cmd: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        calls.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0, stdout='{"items": [{"branch": "main"}]}')
+
+    monkeypatch.setattr(sl.subprocess, "run", fake_run)
+    assert sl.wt_items("/r/repo") == [{"branch": "main"}]
+    assert sl.wt_items("/r/repo") == [{"branch": "main"}]  # fresh cache: wt not run again
+    assert len(calls) == 1
+    (cache,) = (tmp_path / "cc-statusline").iterdir()
+    os.utime(cache, (0, 0))  # expired
+    assert sl.wt_items("/r/repo") == [{"branch": "main"}]
+    assert len(calls) == 2
+    cache.write_text("{broken")
+    os.utime(cache, (0, 0))
+
+    def hung(*_: object, **__: object) -> NoReturn:
+        raise subprocess.TimeoutExpired("wt", 2)
+
+    monkeypatch.setattr(sl.subprocess, "run", hung)
+    assert sl.wt_items("/r/repo") == []  # broken cache and a hung wt: no git info, no crash
 
 
 def run(*argv: str) -> int | str | None:

@@ -119,8 +119,9 @@ def changes_seg(cost: Json) -> str:
 
 def wt_items(cwd: str) -> list[Json]:
     """`wt list` items for cwd's repo, cached on disk for WT_CACHE_TTL seconds."""
-    key = hashlib.sha1(cwd.encode()).hexdigest()[:16]
-    path = os.path.join(tempfile.gettempdir(), f"claude-statusline-wt-{key}.json")
+    # per-user cache dir: a predictable name in a shared /tmp could be pre-planted as a symlink
+    folder = os.path.join(os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"), "cc-statusline")
+    path = os.path.join(folder, f"wt-{hashlib.sha1(cwd.encode()).hexdigest()[:16]}.json")
     try:
         if time.time() - os.path.getmtime(path) < WT_CACHE_TTL:
             with open(path) as f:
@@ -142,6 +143,7 @@ def wt_items(cwd: str) -> list[Json]:
         except (OSError, subprocess.TimeoutExpired, ValueError):
             pass
     try:
+        os.makedirs(folder, exist_ok=True)
         with open(path, "w") as f:
             json.dump(items, f)
     except OSError:
