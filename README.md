@@ -105,6 +105,10 @@ mise run pre-commit   # all hooks on all files
 pytest can't run on the 3.9 the script supports, so the `py39-smoke` hook also renders
 `tests/input.json` on Python 3.9.
 
+## Inspired by
+
+[ccstatusline](https://github.com/sirmalloc/ccstatusline) by sirmalloc.
+
 ## License
 
 [MIT](LICENSE)
