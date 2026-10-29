@@ -236,6 +236,11 @@ def test_setup_writes_through_symlink(tmp_path: Path) -> None:
     assert load_settings(str(real))["statusLine"] == setup_entries("circles", 60)["statusLine"]
 
 
+def test_setup_rejects_negative_refresh_interval(settings: str) -> None:
+    assert setup(settings, "--refresh-interval", "-5") == 2
+    assert not Path(settings).exists()
+
+
 def test_setup_rejects_invalid_json(settings: str) -> None:
     Path(settings).write_text("{oops")
     assert setup(settings) == 2

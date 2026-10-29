@@ -334,6 +334,13 @@ def cmd_setup(args: argparse.Namespace) -> int:
     return 0
 
 
+def non_negative(value: str) -> int:
+    n = int(value)
+    if n < 0:
+        raise argparse.ArgumentTypeError(f"must be 0 or more, got {n}")
+    return n
+
+
 def cmd_render(args: argparse.Namespace) -> int:
     global BAR_STYLE
     BAR_STYLE = args.bar
@@ -366,7 +373,7 @@ def parser() -> argparse.ArgumentParser:
     sp.add_argument("--bar", choices=BARS, default="circles", help="progress bar style (circles)")
     sp.add_argument(
         "--refresh-interval",
-        type=int,
+        type=non_negative,
         default=60,
         metavar="N",
         help="statusLine refreshInterval, 0 = none (60)",
