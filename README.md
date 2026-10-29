@@ -107,7 +107,7 @@ pytest can't run on the 3.9 the script supports, so the `py39-smoke` hook also r
 
 ## Inspired by
 
-[ccstatusline](https://github.com/sirmalloc/ccstatusline) by sirmalloc.
+- [ccstatusline](https://github.com/sirmalloc/ccstatusline) by sirmalloc
 
 ## License
 
