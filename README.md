@@ -59,7 +59,7 @@ mise use -g pipx:git+https://github.com/DimkaGorhover/cc-statusline
 cc-statusline setup
 ```
 
-To pin a release, add the tag to the URL: `git+https://github.com/DimkaGorhover/cc-statusline@v0.2.1`.
+To pin a release, add the tag to the URL: `git+https://github.com/DimkaGorhover/cc-statusline@v0.3.0`.
 
 `setup` points `statusLine` and `subagentStatusLine` in `~/.claude/settings.json` (or
 `$CLAUDE_CONFIG_DIR/settings.json`) at `cc-statusline render` and `cc-statusline render --subagent`.
