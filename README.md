@@ -17,16 +17,20 @@ Line 1:
   - `⇡`/`⇣` for commits ahead of or behind upstream
   - the worktree's marker, e.g. 🤖 while Claude works and 💬 while it waits
   - the markers of the repo's other worktrees, e.g. `2🤖 1💬`
+- **Pull request** for the branch: `#42`, with ✓ approved, ✗ changes requested, ● pending or ○ draft
+  (for a GitLab merge request, Claude Code reports ✓ when it is mergeable, not only when approved)
 
 Line 2:
 
 - **5-hour and 7-day rate limits**: usage bar, percentage and time until reset
 - **Prompt cache**: time until it goes cold
+- **Session cost and duration**: `$1.23`, `1h02m`, off by default (`--show cost,duration`)
 
 Each segment is hidden when Claude Code doesn't send its data. The colors go green, yellow and
 red at 50% and 80%.
 
-Subagents get their own row with name, model, effort and context.
+Subagents get their own row with status (running, completed, failed, killed), name, progress, model,
+effort and context. The task description is off by default (`--show description`).
 
 ## Requirements
 
@@ -80,14 +84,16 @@ when there is none.
 ## Options
 
 ```sh
-cc-statusline setup [--bar STYLE] [--refresh-interval N] [--settings PATH] [--dry-run] [-f]
-cc-statusline render [--subagent] [--bar STYLE]   # what Claude Code runs; reads its JSON on stdin
+cc-statusline setup [--bar STYLE] [--show LIST] [--icons SET] [--refresh-interval N] [--settings PATH] [--dry-run] [-f]
+cc-statusline render [--subagent] [--bar STYLE] [--show LIST] [--icons SET]   # what Claude Code runs; reads its JSON on stdin
 cc-statusline --version
 ```
 
 | Option                 | Default                    | Description                                                                          |
 | ---------------------- | -------------------------- | ------------------------------------------------------------------------------------ |
 | `--bar STYLE`          | `circles`                  | Bar style: `circles` (Material Design), `circles-fa` (Font Awesome) or `line` (`▬`) |
+| `--show LIST`          |                            | Optional segments, comma-separated: `cost`, `duration`, `description`               |
+| `--icons SET`          | `nerd`                     | Subagent status icons: `nerd` (Nerd Font) or `emoji`                                 |
 | `--refresh-interval N` | `60`                       | `refreshInterval` for statusLine, in seconds; `0` leaves it unset                    |
 | `--settings PATH`      | `~/.claude/settings.json`  | Settings file to write                                                               |
 | `--dry-run`            |                            | Show the changes without writing                                                     |
@@ -108,6 +114,7 @@ pytest can't run on the 3.9 the script supports, so the `py39-smoke` hook also r
 ## Inspired by
 
 - [ccstatusline](https://github.com/sirmalloc/ccstatusline) by sirmalloc
+- [claude-statusline](https://github.com/ProcessPal/claude-statusline) by ProcessPal
 
 ## License
 

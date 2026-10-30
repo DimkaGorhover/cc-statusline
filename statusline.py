@@ -2,10 +2,11 @@
 """Claude Code status line.
 
 `render` (stdin: status line JSON) -> 2 lines:
-  model | context used/window | session lines changed | branch or worktree (via `wt`)
-  5h limit | 7d limit | prompt cache
+  model | context used/window | session lines changed | branch or worktree (via `wt`) | PR
+  5h limit | 7d limit | prompt cache [| session cost | session duration]
 `render --subagent` (stdin: {"tasks": [...]}) -> one JSON line per task.
 Bars are Material Design circles by default; `--bar circles-fa` for Font Awesome circles, `--bar line` for ▬.
+`--show cost,duration,description` turns on the optional segments; `--icons emoji` for subagent status.
 
 `setup` points statusLine and subagentStatusLine in settings.json at the `cc-statusline` command.
 """
@@ -23,6 +24,8 @@ import subprocess
 import sys
 import tempfile
 import time
+import traceback
+import unicodedata
 from typing import Any, NoReturn
 
 # Nerd Font glyphs
@@ -34,6 +37,8 @@ TREE = "\U000f0645"  # nf-md-file_tree
 CLOCK = "\U000f0150"  # nf-md-clock_outline
 CALENDAR = "\U000f00ed"  # nf-md-calendar
 HOURGLASS = "\U000f051f"  # nf-md-timer_sand
+TIMER = "\U000f051b"  # nf-md-timer_outline
+PR = "\uf407"  # nf-oct-git_pull_request
 # (full, half, empty), each from one icon set: Unicode ◐ is missing from many Nerd Fonts and
 # falls back to another font with a different baseline
 CIRCLES = {
@@ -49,10 +54,28 @@ SEP = f" {DIM}│{RESET} "
 ANSI = re.compile(r"\033\[[0-9;]*m")
 BARS = (*CIRCLES, "line")
 BAR_STYLE = "circles"  # set from --bar in main()
+OPTIONAL = ("cost", "duration", "description")
+SHOW: set[str] = set()  # set from --show in main()
+ICONS = "nerd"  # set from --icons in main()
 
 WT_CACHE_TTL = 5  # seconds
 
 Json = dict[str, Any]  # a JSON object as json.load returns it
+
+# review_state -> (color, mark)
+PR_STATES = {
+    "approved": (GREEN, " ✓"),
+    "changes_requested": (RED, " ✗"),
+    "pending": (YELLOW, " ●"),
+    "draft": (DIM, " ○"),
+}
+# task status -> (color, nerd icon, emoji); unknown statuses get no icon
+STATUS = {
+    "running": (CYAN, "\uf04b", "🔄"),  # nf-fa-play
+    "completed": (GREEN, "\uf00c", "✅"),  # nf-fa-check
+    "failed": (RED, "\uf00d", "❌"),  # nf-fa-xmark
+    "killed": (DIM, "\uf04d", "⛔"),  # nf-fa-stop
+}
 
 
 def c(color: str, text: str) -> str:
@@ -116,6 +139,40 @@ def changes_seg(cost: Json) -> str:
     if not (added or removed):
         return ""
     return f"{DIFF} {c(GREEN, f'+{added}')} {c(RED, f'-{removed}')}"
+
+
+def pr_seg(pr: Json | None) -> str:
+    if not pr or not pr.get("number"):
+        return ""
+    color, mark = PR_STATES.get(pr.get("review_state") or "", (BLUE, ""))
+    return c(color, f"{PR} #{pr['number']}{mark}")
+
+
+def cost_seg(cost: Json) -> str:
+    usd = cost.get("total_cost_usd")
+    return f"${usd:.2f}" if usd is not None else ""
+
+
+def session_seg(cost: Json) -> str:
+    ms = cost.get("total_duration_ms") or 0
+    return f"{TIMER} {duration(ms / 1000)}" if ms >= 60_000 else ""  # duration() has no seconds
+
+
+def cells(text: str) -> int:
+    """Terminal width of text, ANSI codes dropped; wide (emoji, CJK) characters take 2 cells."""
+    return sum(2 if unicodedata.east_asian_width(ch) in "WF" else 1 for ch in ANSI.sub("", text))
+
+
+def trim(text: str, width: int) -> str:
+    if cells(text) <= width:
+        return text
+    out, used = "", 1  # 1 for the …
+    for ch in text:
+        used += cells(ch)
+        if used > width:
+            break
+        out += ch
+    return out + "…"
 
 
 def wt_items(cwd: str) -> list[Json]:
@@ -218,14 +275,16 @@ def render_main(data: Json, now: float | None = None, items: list[Json] | None =
     ctx = data.get("context_window") or {}
     usage = ctx.get("current_usage") or {}
     used = sum(usage.get(k) or 0 for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
+    cost = data.get("cost") or {}
     if items is None:
         cwd = (data.get("workspace") or {}).get("current_dir") or data.get("cwd") or os.getcwd()
         items = wt_items(cwd)
     line1 = [
         with_effort(c(CYAN, f"{ROBOT} {model}"), (data.get("effort") or {}).get("level")) if model else "",
         context_seg(used, ctx.get("context_window_size")),
-        changes_seg(data.get("cost") or {}),
+        changes_seg(cost),
         git_seg(items),
+        pr_seg(data.get("pr")),
         others_seg(items),
     ]
     limits = data.get("rate_limits") or {}
@@ -233,25 +292,47 @@ def render_main(data: Json, now: float | None = None, items: list[Json] | None =
         limit_seg(CLOCK, "5h", limits.get("five_hour"), now),
         limit_seg(CALENDAR, "7d", limits.get("seven_day"), now),
         cache_seg(data.get("prompt_cache"), now),
+        cost_seg(cost) if "cost" in SHOW else "",
+        session_seg(cost) if "duration" in SHOW else "",
     ]
     return "\n".join(SEP.join(s for s in line if s) for line in (line1, line2) if any(line))
+
+
+def name_seg(t: Json) -> str:
+    color, nerd, emoji = STATUS.get(t.get("status") or "", ("", "", ""))
+    seg = c(color, (emoji if ICONS == "emoji" else nerd) + " ") if color else ""
+    seg += c(CYAN, f"{ROBOT} {t.get('name') or t.get('agentType') or 'agent'}")
+    # label falls back to a copy of description; show it only as a real progress summary
+    if t.get("label") and t["label"] != t.get("description"):
+        seg += c(DIM, f" · {trim(t['label'], 24)}")
+    return seg
 
 
 def render_subagents(data: Json) -> str:
     rows = []
     for t in data.get("tasks") or []:
         segs = [
-            c(CYAN, f"{ROBOT} {t.get('name') or t.get('agentType') or 'agent'}"),
+            name_seg(t),
             with_effort(pretty_model(t.get("model")), t.get("effort")) if t.get("model") else "",
             context_seg(t.get("tokenCount") or 0, t.get("contextWindowSize")),
         ]
-        rows.append(json.dumps({"id": t["id"], "content": SEP.join(s for s in segs if s)}))
+        segs = [s for s in segs if s]
+        if "description" in SHOW and t.get("description"):
+            # the description gets whatever the other segments leave of the row
+            room = (data.get("columns") or 100) - cells(SEP.join(segs)) - cells(SEP)
+            if room >= 10:
+                segs.insert(1, c(DIM, trim(t["description"], room)))
+        rows.append(json.dumps({"id": t["id"], "content": SEP.join(segs)}))
     return "\n".join(rows)
 
 
-def setup_entries(bar_style: str, refresh: int) -> Json:
+def setup_entries(bar_style: str, refresh: int, show: list[str] | None = None, icons: str = "nerd") -> Json:
     # bare name, found on PATH: uv's ~/.local/bin and mise's shims keep it stable across upgrades
     flag = f" --bar {bar_style}" if bar_style != "circles" else ""
+    if show:
+        flag += f" --show {','.join(sorted(set(show)))}"
+    if icons != "nerd":
+        flag += f" --icons {icons}"
     main_entry: Json = {"type": "command", "command": f"cc-statusline render{flag}"}
     if refresh:
         main_entry["refreshInterval"] = refresh
@@ -315,7 +396,7 @@ def cmd_setup(args: argparse.Namespace) -> int:
     settings = load_settings(path)
     updates: Json = {}
     refused: list[str] = []
-    for key, new in setup_entries(args.bar, args.refresh_interval).items():
+    for key, new in setup_entries(args.bar, args.refresh_interval, args.show, args.icons).items():
         old = settings.get(key)
         if old == new:
             print(f"{key}: already up to date")
@@ -347,14 +428,29 @@ def non_negative(value: str) -> int:
     return n
 
 
+def show_list(value: str) -> list[str]:
+    names = [n for n in value.split(",") if n]
+    bad = [n for n in names if n not in OPTIONAL]
+    if bad:
+        raise argparse.ArgumentTypeError(f"unknown {', '.join(bad)}; choose from {', '.join(OPTIONAL)}")
+    return names
+
+
 def cmd_render(args: argparse.Namespace) -> int:
-    global BAR_STYLE
-    BAR_STYLE = args.bar
+    global BAR_STYLE, SHOW, ICONS
+    BAR_STYLE, SHOW, ICONS = args.bar, set(args.show), args.icons
     try:
         data = json.load(sys.stdin)
     except ValueError:
         return 0
-    print(render_subagents(data) if args.subagent else render_main(data))
+    try:
+        print(render_subagents(data) if args.subagent else render_main(data))
+    except Exception as e:
+        traceback.print_exc()
+        # a blank status line hides the bug; a non-JSON subagent line would, so keep Claude Code's default rows
+        if not args.subagent:
+            first = str(e).split("\n")[0]  # one line, or it breaks the status line layout
+            print(c(RED, f"cc-statusline: {type(e).__name__}: {first}"))
     return 0
 
 
@@ -363,6 +459,19 @@ def version() -> str:
         return importlib.metadata.version("cc-statusline")
     except importlib.metadata.PackageNotFoundError:  # run as a plain file, not installed
         return "dev"
+
+
+def add_display_args(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--bar", choices=BARS, default="circles", help="progress bar style (circles)")
+    p.add_argument(
+        "--show",
+        type=show_list,
+        action="extend",
+        default=[],
+        metavar="LIST",
+        help=f"comma-separated optional segments: {', '.join(OPTIONAL)}",
+    )
+    p.add_argument("--icons", choices=("nerd", "emoji"), default="nerd", help="subagent status icons (nerd)")
 
 
 def parser() -> argparse.ArgumentParser:
@@ -374,11 +483,11 @@ def parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("render", help="render the status line from Claude Code's JSON on stdin")
     sp.set_defaults(func=cmd_render)
     sp.add_argument("--subagent", action="store_true", help="render subagentStatusLine rows instead of statusLine")
-    sp.add_argument("--bar", choices=BARS, default="circles", help="progress bar style (circles)")
+    add_display_args(sp)
 
     sp = sub.add_parser("setup", help="point statusLine and subagentStatusLine in settings.json at cc-statusline")
     sp.set_defaults(func=cmd_setup)
-    sp.add_argument("--bar", choices=BARS, default="circles", help="progress bar style (circles)")
+    add_display_args(sp)
     sp.add_argument(
         "--refresh-interval",
         type=non_negative,

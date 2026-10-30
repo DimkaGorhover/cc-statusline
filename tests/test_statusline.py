@@ -19,7 +19,9 @@ from statusline import (
     DIFF,
     DIM,
     HOURGLASS,
+    PR,
     ROBOT,
+    TIMER,
     TREE,
     bar,
     cache_seg,
@@ -159,6 +161,78 @@ def test_render_subagents() -> None:
     assert strip(row["content"]).startswith(f"{ROBOT} explore │ Haiku 5.5 · 16k │")
 
 
+@pytest.mark.parametrize(
+    ("pr", "want"),
+    [
+        ({"number": 42, "review_state": "approved"}, f"{PR} #42 ✓"),
+        ({"number": 7, "review_state": "changes_requested"}, f"{PR} #7 ✗"),
+        ({"number": 7}, f"{PR} #7"),
+    ],
+)
+def test_render_main_pr(pr: dict, want: str) -> None:
+    assert strip(render_main({"pr": pr}, items=[])) == want
+
+
+def test_render_main_cost_and_duration_opt_in(monkeypatch: pytest.MonkeyPatch) -> None:
+    data = {"cost": {"total_cost_usd": 1.234, "total_duration_ms": 3_720_000}}
+    assert render_main(data, items=[]) == ""  # off by default
+    monkeypatch.setattr(sl, "SHOW", {"cost", "duration"})
+    assert strip(render_main(data, items=[])) == f"$1.23 │ {TIMER} 1h02m"
+    assert strip(render_main({"cost": {"total_duration_ms": 59_000}}, items=[])) == ""  # under a minute
+
+
+def test_render_subagents_status_label_description(monkeypatch: pytest.MonkeyPatch) -> None:
+    task = {"id": "t1", "name": "rev", "status": "running", "description": "review auth", "label": "review auth"}
+    content = lambda t: strip(json.loads(render_subagents({"tasks": [t]}))["content"])  # noqa: E731
+    assert content(task) == f"\uf04b {ROBOT} rev"  # label equal to description is a copy, not progress
+    assert content({**task, "status": "?", "label": "reading a-very-long-file-name.py"}) == (
+        f"{ROBOT} rev · reading a-very-long-fil…"
+    )
+    monkeypatch.setattr(sl, "ICONS", "emoji")
+    monkeypatch.setattr(sl, "SHOW", {"description"})
+    assert content({**task, "status": "completed"}) == f"✅ {ROBOT} rev │ review auth"
+
+
+def test_subagent_description_fits_columns(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sl, "SHOW", {"description"})
+    task = {
+        "id": "t1",
+        "name": "rev",
+        "label": "checking auth.py",
+        "description": "x" * 200,
+        "model": "claude-haiku-5-5",
+        "effort": "high",
+        "tokenCount": 34000,
+        "contextWindowSize": 200000,
+    }
+    row = lambda columns: json.loads(render_subagents({"columns": columns, "tasks": [task]}))["content"]  # noqa: E731
+    assert sl.cells(row(120)) == 120
+    assert "xxx" in row(120)
+    assert "xxx" not in row(60)  # the other segments already take more than 60 cells
+
+
+def test_trim_counts_wide_chars() -> None:
+    assert sl.trim("ab", 2) == "ab"
+    assert sl.trim("🤖🤖🤖🤖", 7) == "🤖🤖🤖…"  # each 🤖 is 2 cells: 3 + … fit in 7
+
+
+def test_render_error_is_shown(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    monkeypatch.setattr(sys, "stdin", io.StringIO('{"model": {"display_name": 5}}'))
+
+    def boom(_: object) -> NoReturn:
+        raise ValueError("first\nsecond")
+
+    monkeypatch.setattr(sl, "render_main", boom)
+    assert run("render") == 0
+    out = capsys.readouterr()
+    assert strip(out.out) == "cc-statusline: ValueError: first\n"
+    assert "Traceback" in out.err
+
+
+def test_render_rejects_unknown_show() -> None:
+    assert run("render", "--show", "cost,nope") == 2
+
+
 def test_wt_items_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
     monkeypatch.setattr(sl.shutil, "which", lambda _: "/bin/wt")
@@ -237,6 +311,13 @@ def test_setup_writes_cc_statusline_commands(settings: str) -> None:
     s = load_settings(settings)
     assert s["statusLine"]["command"] == "cc-statusline render --bar line"
     assert s["subagentStatusLine"]["command"] == "cc-statusline render --subagent --bar line"
+
+
+def test_setup_writes_show_and_icons(settings: str) -> None:
+    assert setup(settings, "--show", "duration,cost", "--show", "cost", "--icons", "emoji") == 0
+    s = load_settings(settings)
+    assert s["statusLine"]["command"] == "cc-statusline render --show cost,duration --icons emoji"
+    assert s["subagentStatusLine"]["command"] == "cc-statusline render --subagent --show cost,duration --icons emoji"
 
 
 def test_setup_refuses_foreign_entry_without_force(settings: str) -> None:
