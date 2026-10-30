@@ -1,6 +1,6 @@
 [project]
 name = "cc-statusline"
-version = "0.2.0"
+version = "0.2.1"
 description = "Two-line Claude Code status line: model, context, git/worktree, rate limits"
 readme = "README.md"
 license = "MIT"
