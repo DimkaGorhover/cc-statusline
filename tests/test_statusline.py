@@ -155,6 +155,8 @@ def test_render_subagents() -> None:
     row = json.loads(render_subagents({"tasks": [task]}))
     assert row["id"] == "t1"
     assert strip(row["content"]) == f"{ROBOT} explore │ Haiku 5.5 · low │ {CHIP} {F}{E * 4} 34k/200k (17%)"
+    row = json.loads(render_subagents({"tasks": [{**task, "effort": 16000}]}))
+    assert strip(row["content"]).startswith(f"{ROBOT} explore │ Haiku 5.5 · 16k │")
 
 
 def test_wt_items_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

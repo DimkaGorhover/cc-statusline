@@ -196,7 +196,9 @@ def cache_seg(pc: Json | None, now: float) -> str:
     return c(GREEN if left >= 300 else YELLOW, f"{HOURGLASS} {duration(left)}")
 
 
-def with_effort(text: str, effort: str | None) -> str:
+def with_effort(text: str, effort: str | float | None) -> str:
+    # subagent effort may be a numeric token budget instead of a level
+    effort = human(effort) if isinstance(effort, (int, float)) else effort
     return text + c(DIM, f" · {effort}") if effort else text
 
 
