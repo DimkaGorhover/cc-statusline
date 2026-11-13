@@ -5,6 +5,7 @@ minimum_release_age = "7d"
 [tools]
 gitleaks = "latest"
 prek = "latest"
+python = "3.9"
 ruff = "latest"
 ty = "latest"
 uv = "latest"
