@@ -45,6 +45,18 @@ repos:
         types:
           - python
 
+      - id: ty
+        groups:
+          - validate
+          - python
+        name: ty
+        language: system
+        # the project venv gives ty pytest and the Python version
+        entry: uv run --quiet --frozen ty check
+        pass_filenames: false
+        types:
+          - python
+
   - repo: builtin
     hooks:
       - id: trailing-whitespace
@@ -120,7 +132,7 @@ repos:
           - python
         name: pytest
         language: system
-        entry: uv run --quiet --frozen pytest -q -p no:cacheprovider
+        entry: mise run --quiet test -q -p no:cacheprovider
         pass_filenames: false
         files: ^(statusline\.py|tests/.*\.py|pyproject\.toml|uv\.lock)$
 
@@ -132,18 +144,6 @@ repos:
           - python
         name: render on Python 3.9
         language: system
-        entry: sh -c 'uv run --quiet --no-project --python 3.9 python statusline.py render < tests/input.json > /dev/null'
+        entry: mise run --quiet smoke-py39
         pass_filenames: false
         files: ^(statusline\.py|tests/input\.json)$
-
-      - id: ty
-        groups:
-          - validate
-          - python
-        name: ty
-        language: system
-        # the project venv gives ty pytest and the Python version
-        entry: uv run --quiet --frozen ty check
-        pass_filenames: false
-        types:
-          - python

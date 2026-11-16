@@ -16,4 +16,10 @@ run = "prek run --all-files --cd {{config_root}}"
 
 [tasks.test]
 description = "run tests"
-run = "uv run --directory {{config_root}} pytest"
+dir = "{{config_root}}"
+run = "uv run --quiet --frozen pytest"
+
+[tasks.smoke-py39]
+description = "render a sample input on Python 3.9"
+dir = "{{config_root}}"
+run = "uv run --quiet --no-project --python 3.9 python statusline.py render < tests/input.json > /dev/null"
