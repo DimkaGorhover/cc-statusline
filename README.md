@@ -3,6 +3,14 @@
 A two-line [Claude Code](https://code.claude.com/docs/en/statusline) status line in one Python file,
 with no dependencies.
 
+> [!WARNING]
+> Claude Code 2.1.323 [removed the `subagentStatusLine` setting](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md).
+> Since then, subagent rows always use Claude Code's default look, and cc-statusline's subagent
+> row is not shown. The key is still accepted in settings.json but does nothing, so leaving it
+> there is harmless. The main status line is not affected. Claude Code 2.1.322 and older still use
+> the subagent row, if you pin that version. To ask for the setting back, see
+> [anthropics/claude-code#109446](https://github.com/anthropics/claude-code/issues/109446).
+
 ![cc-statusline in Claude Code](assets/screenshot.png)
 
 ## What it shows
@@ -31,14 +39,6 @@ red at 50% and 80%.
 
 Subagents get their own row with status (running, completed, failed, killed), name, progress, model,
 effort and context. The task description is off by default (`--show description`).
-
-> [!WARNING]
-> Claude Code 2.1.323 [removed the `subagentStatusLine` setting](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md).
-> Since then, subagent rows always use Claude Code's default look, and the subagent row above is
-> not shown. The key is still accepted in settings.json but does nothing, so leaving it there is
-> harmless. The main status line is not affected. Claude Code 2.1.322 and older still use the
-> subagent row, if you pin that version. To ask for the setting back, see
-> [anthropics/claude-code#109446](https://github.com/anthropics/claude-code/issues/109446).
 
 ## Requirements
 
