@@ -124,6 +124,8 @@ pytest can't run on the 3.9 the script supports, so the `py39-smoke` hook also r
 
 - [ccstatusline](https://github.com/sirmalloc/ccstatusline) by sirmalloc
 - [claude-statusline](https://github.com/ProcessPal/claude-statusline) by ProcessPal
+- [claude-powerline](https://github.com/Owloops/claude-powerline) by Owloops
+- [claude-code-usage-bar](https://github.com/leeguooooo/claude-code-usage-bar) by leeguooooo
 
 ## License
 
