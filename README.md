@@ -32,6 +32,14 @@ red at 50% and 80%.
 Subagents get their own row with status (running, completed, failed, killed), name, progress, model,
 effort and context. The task description is off by default (`--show description`).
 
+> [!WARNING]
+> Claude Code 2.1.323 [removed the `subagentStatusLine` setting](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md).
+> Since then, subagent rows always use Claude Code's default look, and the subagent row above is
+> not shown. The key is still accepted in settings.json but does nothing, so leaving it there is
+> harmless. The main status line is not affected. Claude Code 2.1.322 and older still use the
+> subagent row, if you pin that version. To ask for the setting back, see
+> [anthropics/claude-code#109446](https://github.com/anthropics/claude-code/issues/109446).
+
 ## Requirements
 
 - Python 3.9+ (macOS's `/usr/bin/python3` works)
@@ -63,6 +71,7 @@ To pin a release, add the tag to the URL: `git+https://github.com/DimkaGorhover/
 
 `setup` points `statusLine` and `subagentStatusLine` in `~/.claude/settings.json` (or
 `$CLAUDE_CONFIG_DIR/settings.json`) at `cc-statusline render` and `cc-statusline render --subagent`.
+Claude Code 2.1.323 and later ignore `subagentStatusLine` (see the warning above).
 Claude Code finds the command on your PATH (`~/.local/bin` for uv, mise's shims), so upgrades never
 change settings.json. `setup` saves a backup to `settings.json.bak` first. If settings.json is a
 symlink, for example into a dotfiles repo, `setup` writes the file it points to.
